@@ -95,6 +95,7 @@ export type Database = {
           description: string | null
           duration_min: number | null
           id: string
+          image_path: string | null
           kind: string
           name: string
           price_clp: number
@@ -108,6 +109,7 @@ export type Database = {
           description?: string | null
           duration_min?: number | null
           id?: string
+          image_path?: string | null
           kind: string
           name: string
           price_clp: number
@@ -121,6 +123,7 @@ export type Database = {
           description?: string | null
           duration_min?: number | null
           id?: string
+          image_path?: string | null
           kind?: string
           name?: string
           price_clp?: number
@@ -212,6 +215,7 @@ export type Database = {
         Args: { p_appointment_id: string; p_payment_method?: string }
         Returns: undefined
       }
+      delete_item: { Args: { p_item_id: string }; Returns: string }
       monthly_summary: {
         Args: { p_month: string }
         Returns: {

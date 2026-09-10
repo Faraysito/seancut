@@ -29,7 +29,7 @@ export default async function Resumen({
     p_month: mesElegido + "-01",
   });
 
-  if (error) return <pre className="text-red-600">{error.message}</pre>;
+  if (error) return <pre className="text-red-400">{error.message}</pre>;
 
   const resumen = filas ?? [];
 
@@ -56,23 +56,17 @@ export default async function Resumen({
           <p className="text-sm text-neutral-500">{etiqueta}</p>
         </div>
         <form className="flex gap-2">
-          <input
-            type="month"
-            name="mes"
-            defaultValue={mesElegido}
-            max={mesActual}
-            className="rounded-md border px-2 py-1 text-sm"
-          />
-          <button className="rounded-md border px-3 py-1 text-sm">Ver</button>
+          <input type="month" name="mes" defaultValue={mesElegido} max={mesActual} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100" />
+          <button className="rounded-md border border-neutral-600 px-3 py-1 text-sm">Ver</button>
         </form>
       </div>
 
-      <div className="mb-6 rounded-md border p-4">
-        <p className="text-sm text-neutral-500">Ganancia del mes</p>
+      <div className="mb-6 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+        <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">Ganancia del mes</p>
         <p
           className={
-            "text-3xl font-semibold tabular-nums " +
-            (total.ganancia >= 0 ? "text-green-700" : "text-red-600")
+            "mt-1 text-3xl font-semibold tabular-nums " +
+            (total.ganancia >= 0 ? "text-emerald-400" : "text-red-400")
           }
         >
           {clp(total.ganancia)}
@@ -83,34 +77,34 @@ export default async function Resumen({
       </div>
 
       {resumen.length === 0 && (
-        <p className="rounded-md border border-dashed p-8 text-center text-sm text-neutral-500">
+        <p className="rounded-md border border-dashed border-neutral-800 p-8 text-center text-sm text-neutral-500">
           Sin movimientos este mes
         </p>
       )}
 
       <div className="space-y-3">
         {resumen.map((r) => (
-          <div key={r.marca} className="rounded-md border p-4">
+          <div key={r.marca} className="rounded-lg border border-neutral-800 p-4">
             <p className="mb-2 font-medium">{NOMBRE[r.marca] ?? r.marca}</p>
             <dl className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <dt className="text-neutral-500">Ventas</dt>
-                <dd className="tabular-nums text-green-700">{clp(r.ingresos)}</dd>
+                <dd className="tabular-nums text-emerald-400">{clp(r.ingresos)}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-neutral-500">Costo de lo vendido</dt>
-                <dd className="tabular-nums text-neutral-600">−{clp(r.costos)}</dd>
+                <dd className="tabular-nums text-neutral-400">−{clp(r.costos)}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-neutral-500">Gastos</dt>
-                <dd className="tabular-nums text-red-600">−{clp(r.gastos)}</dd>
+                <dd className="tabular-nums text-red-400">−{clp(r.gastos)}</dd>
               </div>
-              <div className="flex justify-between border-t pt-1 font-medium">
+              <div className="flex justify-between border-t border-neutral-800 pt-1 font-medium">
                 <dt>Ganancia</dt>
                 <dd
                   className={
                     "tabular-nums " +
-                    (r.ganancia >= 0 ? "text-green-700" : "text-red-600")
+                    (r.ganancia >= 0 ? "text-emerald-400" : "text-red-400")
                   }
                 >
                   {clp(r.ganancia)}
