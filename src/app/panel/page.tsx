@@ -1,82 +1,85 @@
-import { fromZonedTime } from "date-fns-tz";
+import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { logout } from "../login/actions";
 
-const TZ = "America/Santiago";
+const IG_CORTES = "https://www.instagram.com/sean.cut/";
+const IG_PRODUCTOS = "https://www.instagram.com/seannova.cl/";
 
-function hora(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-CL", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: TZ,
-  });
+// ⬇️ CAMBIA ESTO por los datos reales
+const DIRECCION = "Av. Ejemplo 1234, Santiago";
+const HORARIO = "Lun a Vie 10:00–20:00 · Sáb 10:00–18:00 · Dom cerrado";
+const WHATSAPP = "https://wa.me/56900000000";
+
+function clp(n: number) {
+  return "$" + n.toLocaleString("es-CL");
 }
 
-function waLink(phone?: string | null) {
-  if (!phone) return "#";
-  return "https://wa.me/" + phone.replace("+", "");
-}
-
-export default async function Panel() {
+export default async function Home() {
   const supabase = await createClient();
 
-  const hoy = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
-  const desde = fromZonedTime(hoy + "T00:00:00", TZ);
-  const hasta = fromZonedTime(hoy + "T23:59:59.999", TZ);
+  const { data: items } = await supabase
+    .from("items")
+    .select("id, name, price_clp, duration_min, brand")
+    .eq("active", true)
+    .order("price_clp");
 
-  const { data: citas, error } = await supabase
-    .from("appointments")
-    .select("id, starts_at, status, clients(name, phone), items(name)")
-    .gte("starts_at", desde.toISOString())
-    .lte("starts_at", hasta.toISOString())
-    .order("starts_at");
-
-  if (error) {
-    return <pre className="p-8 text-red-600">{error.message}</pre>;
-  }
-
-  const fecha = new Date().toLocaleDateString("es-CL", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: TZ,
-  });
-
-  const lista = citas ?? [];
+  const servicios = (items ?? []).filter((i) => i.brand === "seancut");
+  const productos = (items ?? []).filter((i) => i.brand === "seannova");
 
   return (
-    <main className="mx-auto max-w-lg p-6">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Hoy</h1>
-          <p className="text-sm text-neutral-500">{fecha}</p>
+    <main className="min-h-dvh bg-neutral-950 text-neutral-100">
+      <section className="mx-auto max-w-md px-6 pb-14 pt-16 text-center">
+        <Image src="/seancut.png" alt="Sean Cut" width={130} height={130} className="mx-auto rounded-full" priority />
+        <h1 className="mt-6 text-4xl font-bold tracking-tight">SEAN CUT</h1>
+        <p className="mt-2 text-xs uppercase tracking-[0.35em] text-neutral-500">barbería</p>
+        <Link href="/reservar" className="mt-8 block rounded-full bg-white py-4 text-center font-semibold text-neutral-950">Reservar hora</Link>
+        <a href={IG_CORTES} className="mt-4 inline-block text-sm text-neutral-400 underline">@sean.cut</a>
+      </section>
+
+      <section className="mx-auto max-w-md px-6 pb-14">
+        <h2 className="mb-4 text-xs uppercase tracking-[0.2em] text-neutral-500">Servicios</h2>
+        <ul className="divide-y divide-neutral-800">
+          {servicios.map((s) => (
+            <li key={s.id} className="flex items-baseline justify-between py-3">
+              <div>
+                <p className="font-medium">{s.name}</p>
+                <p className="text-xs text-neutral-500">{s.duration_min} min</p>
+              </div>
+              <p className="tabular-nums">{clp(s.price_clp)}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="border-y border-neutral-800 bg-neutral-900">
+        <div className="mx-auto max-w-md px-6 py-14 text-center">
+          <Image src="/seannova.png" alt="SeanNova" width={90} height={90} className="mx-auto rounded-full" />
+          <h2 className="mt-4 text-2xl font-bold">SEANNOVA</h2>
+          <p className="mt-1 text-sm text-neutral-400">Productos para el pelo y la barba</p>
+
+          <ul className="mt-6 divide-y divide-neutral-800 text-left">
+            {productos.map((p) => (
+              <li key={p.id} className="flex items-baseline justify-between py-3">
+                <p className="font-medium">{p.name}</p>
+                <p className="tabular-nums">{clp(p.price_clp)}</p>
+              </li>
+            ))}
+          </ul>
+
+          <a href={IG_PRODUCTOS} className="mt-6 inline-block rounded-full border border-neutral-600 px-6 py-3 text-sm">Comprar por @seannova.cl</a>
         </div>
-        <form action={logout}>
-          <button className="text-sm text-neutral-500 underline">salir</button>
-        </form>
-      </header>
+      </section>
 
-      {lista.length === 0 && (
-        <p className="rounded-md border border-dashed p-8 text-center text-sm text-neutral-500">
-          Sin horas para hoy
-        </p>
-      )}
+      <section className="mx-auto max-w-md px-6 py-14">
+        <h2 className="mb-4 text-xs uppercase tracking-[0.2em] text-neutral-500">Dónde y cuándo</h2>
+        <p className="text-sm">{DIRECCION}</p>
+        <p className="mt-2 text-sm text-neutral-400">{HORARIO}</p>
+        <a href={WHATSAPP} className="mt-6 inline-block text-sm text-green-500 underline">Escribir por WhatsApp</a>
+      </section>
 
-      <ul className="divide-y">
-        {lista.map((c) => (
-          <li key={c.id} className="flex items-center gap-4 py-3">
-            <span className="w-12 font-mono text-sm">{hora(c.starts_at)}</span>
-            <div className="flex-1">
-              <p className="font-medium">{c.clients?.name}</p>
-              <p className="text-sm text-neutral-500">{c.items?.name}</p>
-            </div>
-            <a href={waLink(c.clients?.phone)} className="text-sm text-green-600">
-              WhatsApp
-            </a>
-          </li>
-        ))}
-      </ul>
+      <footer className="border-t border-neutral-800 py-8 text-center text-xs text-neutral-600">
+        Sean Cut · Santiago, Chile
+      </footer>
     </main>
   );
 }

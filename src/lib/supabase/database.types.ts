@@ -208,6 +208,24 @@ export type Database = {
         }
         Returns: string
       }
+      complete_appointment: {
+        Args: { p_appointment_id: string; p_payment_method?: string }
+        Returns: undefined
+      }
+      monthly_summary: {
+        Args: { p_month: string }
+        Returns: {
+          costos: number
+          ganancia: number
+          gastos: number
+          ingresos: number
+          marca: Database["public"]["Enums"]["brand"]
+        }[]
+      }
+      sell_product: {
+        Args: { p_item_id: string; p_payment_method?: string; p_qty?: number }
+        Returns: undefined
+      }
     }
     Enums: {
       brand: "seancut" | "seannova"
