@@ -1,3 +1,4 @@
+import { ViewTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -27,9 +28,14 @@ export default async function CatalogoPublico() {
   const lista = productos ?? [];
 
   return (
+    <ViewTransition
+      enter={{ "nav-forward": "nav-forward", "nav-back": "nav-back", default: "none" }}
+      exit={{ "nav-forward": "nav-forward", "nav-back": "nav-back", default: "none" }}
+      default="none"
+    >
     <main className="min-h-dvh bg-neutral-950 text-neutral-100">
       <div className="mx-auto w-full max-w-md px-6 py-12 md:max-w-6xl md:px-10 md:py-16">
-        <Link href="/" className="inline-flex items-center gap-2 rounded-full border border-neutral-700 px-5 py-2.5 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-white md:px-6 md:py-3 md:text-base">← Volver</Link>
+        <Link href="/" transitionTypes={["nav-back"]} className="inline-flex items-center gap-2 rounded-full border border-neutral-700 px-5 py-2.5 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-white md:px-6 md:py-3 md:text-base">← Volver</Link>
 
         <div className="mb-10 mt-8 text-center md:mb-16 md:mt-10">
           <Image src="/seannova.png" alt="SeanNova" width={200} height={200} className="mx-auto h-24 w-24 rounded-full object-cover md:h-32 md:w-32" priority />
@@ -77,5 +83,6 @@ export default async function CatalogoPublico() {
         </div>
       </div>
     </main>
+    </ViewTransition>
   );
 }

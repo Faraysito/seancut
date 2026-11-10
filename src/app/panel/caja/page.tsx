@@ -1,14 +1,14 @@
+import Image from "next/image";
+import Link from "next/link";
+import { Tooltip } from "@/components/tooltip";
 import { createClient } from "@/lib/supabase/server";
-import { venderProducto, registrarGasto } from "./actions";
+import { venderProducto } from "./actions";
 
 const TZ = "America/Santiago";
 
 function clp(n: number) {
   return (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("es-CL");
 }
-
-const INPUT =
-  "rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500";
 
 export default async function Caja({
   searchParams,
@@ -20,10 +20,13 @@ export default async function Caja({
 
   const { data: productos } = await supabase
     .from("items")
-    .select("id, name, price_clp, cost_clp, stock")
+    .select("id, name, price_clp, cost_clp, stock, image_path")
     .eq("kind", "product")
     .eq("active", true)
     .order("name");
+
+  const foto = (path: string | null) =>
+    path ? supabase.storage.from("items").getPublicUrl(path).data.publicUrl : null;
 
   const { data: movimientos } = await supabase
     .from("ledger")
@@ -41,52 +44,74 @@ export default async function Caja({
       <section className="mb-8">
         <h2 className="mb-2 text-xs uppercase tracking-[0.2em] text-neutral-500">Vender producto</h2>
         <ul className="divide-y divide-neutral-800">
-          {(productos ?? []).map((p) => (
-            <li key={p.id} className="flex items-center gap-2 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{p.name}</p>
-                <p className="text-sm text-neutral-500">
-                  {p.price_clp === 0 ? (
-                    <span className="text-amber-500">sin precio</span>
-                  ) : (
-                    <>
-                      {clp(p.price_clp)} · margen {clp(p.price_clp - p.cost_clp)}
-                    </>
-                  )}{" "}
-                  · stock {p.stock}
-                </p>
-              </div>
+          {(productos ?? []).map((p) => {
+            const src = foto(p.image_path);
 
-              <form action={venderProducto} className="flex gap-1">
-                <input type="hidden" name="item_id" value={p.id} />
-                <input type="number" name="qty" defaultValue={1} min={1} max={p.stock ?? 1} className="w-14 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100" />
-                <select name="payment_method" className="rounded-md border border-neutral-700 bg-neutral-900 px-1 text-xs text-neutral-100">
-                  <option value="efectivo">efec</option>
-                  <option value="transferencia">transf</option>
-                  <option value="debito">déb</option>
-                  <option value="credito">créd</option>
-                </select>
-                <button disabled={!p.stock} className="rounded-md bg-white px-3 py-1 text-sm font-medium text-neutral-950 disabled:opacity-30">Vender</button>
-              </form>
-            </li>
-          ))}
+            return (
+              <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
+                <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
+                  {src ? (
+                    <Image src={src} alt={p.name} width={48} height={48} className="h-12 w-12 shrink-0 rounded-md object-cover" />
+                  ) : (
+                    <div aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-neutral-800 text-sm font-semibold text-neutral-500">
+                      {p.name.charAt(0)}
+                    </div>
+                  )}
+
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{p.name}</p>
+                    <p className="text-sm text-neutral-500">
+                      {p.price_clp === 0 ? (
+                        <span className="text-amber-500">sin precio</span>
+                      ) : (
+                        <>
+                          {clp(p.price_clp)} · margen {clp(p.price_clp - p.cost_clp)}
+                        </>
+                      )}{" "}
+                      · stock {p.stock}
+                    </p>
+                  </div>
+                </div>
+
+                {p.stock ? (
+                  <form action={venderProducto} className="ml-auto flex gap-1">
+                    <input type="hidden" name="item_id" value={p.id} />
+                    <input type="number" name="qty" defaultValue={1} min={1} max={p.stock} aria-label="Cantidad" className="w-14 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100" />
+                    <select name="payment_method" aria-label="Medio de pago" className="rounded-md border border-neutral-700 bg-neutral-900 px-1 text-xs text-neutral-100">
+                      <option value="efectivo">efec</option>
+                      <option value="transferencia">transf</option>
+                      <option value="debito">déb</option>
+                      <option value="credito">créd</option>
+                    </select>
+                    <button className="rounded-md bg-white px-3 py-1 text-sm font-medium text-neutral-950">Vender</button>
+                  </form>
+                ) : (
+                  <Tooltip text="No queda stock. Súmale en Administrar catálogo/cortes." align="end" className="ml-auto inline-flex">
+                    <button type="button" className="cursor-help rounded-md border border-neutral-800 px-3 py-1 text-sm text-neutral-500">
+                      Sin stock
+                    </button>
+                  </Tooltip>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </section>
 
-      <section className="mb-8">
-        <h2 className="mb-2 text-xs uppercase tracking-[0.2em] text-neutral-500">Registrar gasto</h2>
-        <form action={registrarGasto} className="space-y-2">
-          <div className="flex gap-2">
-            <select name="brand" className={INPUT}>
-              <option value="seancut">Sean Cut</option>
-              <option value="seannova">SeanNova</option>
-            </select>
-            <input type="number" name="amount" required min={1} placeholder="Monto" className={INPUT + " w-32"} />
-          </div>
-          <input name="reason" required placeholder="Motivo: compra stock, arriendo, luz..." className={INPUT + " w-full"} />
-          <button className="w-full rounded-md border border-neutral-600 py-2 text-sm">Registrar gasto</button>
-        </form>
-      </section>
+      <Link
+        href="/panel/gastos"
+        className="mb-8 flex items-center justify-between gap-3 rounded-lg border border-neutral-800 p-4 transition hover:border-neutral-600"
+      >
+        <span>
+          <span className="block text-sm font-medium">¿Compraste algo para el negocio?</span>
+          <span className="block text-xs text-neutral-500">
+            Mercadería, navajas, tijeras, arriendo... anótalo en Gastos.
+          </span>
+        </span>
+        <span aria-hidden className="text-neutral-400">
+          →
+        </span>
+      </Link>
 
       <section>
         <h2 className="mb-2 text-xs uppercase tracking-[0.2em] text-neutral-500">Últimos movimientos</h2>

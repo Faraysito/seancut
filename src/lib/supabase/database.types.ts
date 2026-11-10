@@ -24,6 +24,7 @@ export type Database = {
           notes: string | null
           starts_at: string
           status: string
+          token: string
         }
         Insert: {
           client_id: string
@@ -34,6 +35,7 @@ export type Database = {
           notes?: string | null
           starts_at: string
           status?: string
+          token?: string
         }
         Update: {
           client_id?: string
@@ -44,6 +46,7 @@ export type Database = {
           notes?: string | null
           starts_at?: string
           status?: string
+          token?: string
         }
         Relationships: [
           {
@@ -62,27 +65,81 @@ export type Database = {
           },
         ]
       }
+      business_hours: {
+        Row: {
+          closes: string
+          dow: number
+          id: string
+          opens: string
+        }
+        Insert: {
+          closes: string
+          dow: number
+          id?: string
+          opens: string
+        }
+        Update: {
+          closes?: string
+          dow?: number
+          id?: string
+          opens?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string
           id: string
+          instagram: string | null
           name: string
           notes: string | null
-          phone: string
+          phone: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          instagram?: string | null
           name: string
           notes?: string | null
-          phone: string
+          phone?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          instagram?: string | null
           name?: string
           notes?: string | null
-          phone?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      closed_dates: {
+        Row: {
+          day: string
+          reason: string | null
+        }
+        Insert: {
+          day: string
+          reason?: string | null
+        }
+        Update: {
+          day?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      hidden_slots: {
+        Row: {
+          created_at: string
+          starts_at: string
+        }
+        Insert: {
+          created_at?: string
+          starts_at: string
+        }
+        Update: {
+          created_at?: string
+          starts_at?: string
         }
         Relationships: []
       }
@@ -136,6 +193,7 @@ export type Database = {
           amount_clp: number
           appointment_id: string | null
           brand: Database["public"]["Enums"]["brand"]
+          category: string | null
           cost_clp: number
           created_at: string
           direction: string
@@ -150,6 +208,7 @@ export type Database = {
           amount_clp: number
           appointment_id?: string | null
           brand: Database["public"]["Enums"]["brand"]
+          category?: string | null
           cost_clp?: number
           created_at?: string
           direction: string
@@ -164,6 +223,7 @@ export type Database = {
           amount_clp?: number
           appointment_id?: string | null
           brand?: Database["public"]["Enums"]["brand"]
+          category?: string | null
           cost_clp?: number
           created_at?: string
           direction?: string
@@ -191,11 +251,49 @@ export type Database = {
           },
         ]
       }
+      notices: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          message: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          message: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          message?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      appointment_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          cliente: string
+          ends_at: string
+          price_clp: number
+          servicio: string
+          starts_at: string
+          status: string
+        }[]
+      }
+      available_days: {
+        Args: { p_ahead?: number; p_item_id: string }
+        Returns: {
+          day: string
+        }[]
+      }
       available_slots: {
         Args: { p_date: string; p_item_id: string }
         Returns: {
@@ -211,6 +309,17 @@ export type Database = {
         }
         Returns: string
       }
+      book_appointment_v2: {
+        Args: {
+          p_instagram?: string
+          p_item_id: string
+          p_name: string
+          p_phone?: string
+          p_starts_at: string
+        }
+        Returns: string
+      }
+      cancel_by_token: { Args: { p_token: string }; Returns: string }
       complete_appointment: {
         Args: { p_appointment_id: string; p_payment_method?: string }
         Returns: undefined

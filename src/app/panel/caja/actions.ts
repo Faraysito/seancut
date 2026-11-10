@@ -20,23 +20,3 @@ export async function venderProducto(formData: FormData) {
   revalidatePath("/panel/caja");
   volver(error ? error.message : "Venta registrada", !error);
 }
-
-export async function registrarGasto(formData: FormData) {
-  const monto = Number(formData.get("amount"));
-  const motivo = String(formData.get("reason") || "").trim();
-
-  if (!Number.isInteger(monto) || monto <= 0) volver("Monto inválido", false);
-  if (motivo.length < 3) volver("Escribe un motivo", false);
-
-  const supabase = await createClient();
-
-  const { error } = await supabase.from("ledger").insert({
-    brand: String(formData.get("brand")) as "seancut" | "seannova",
-    direction: "out",
-    amount_clp: monto,
-    reason: motivo,
-  });
-
-  revalidatePath("/panel/caja");
-  volver(error ? error.message : "Gasto registrado", !error);
-}

@@ -1,14 +1,30 @@
-import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
+import { MesNav } from "@/components/mes-nav";
+import { InfoTip } from "@/components/tooltip";
+import { MARCAS, clp, mensajeGastos, nombreCategoria } from "@/lib/gastos";
+import { mesActual, mesValido, nombreMes } from "@/lib/mes";
+import { movimientosDelMes, type Movimiento } from "@/lib/movimientos";
 
-const TZ = "America/Santiago";
+// lo que entró (cortes y productos cobrados) menos lo que salió (lo que se
+// anota en Gastos). no se resta además el "costo de lo vendido": si sean
+// anota la compra de poleras como gasto y encima se descuenta el costo al
+// venderlas, esas poleras se contarían dos veces
+function sumar(filas: Movimiento[]) {
+  let entro = 0;
+  let salio = 0;
+  for (const f of filas) {
+    if (f.direction === "in") entro += f.amount_clp;
+    else if (f.direction === "out") salio += f.amount_clp;
+  }
+  return { entro, salio, resultado: entro - salio };
+}
 
-const NOMBRE: Record<string, string> = {
-  seancut: "Sean Cut",
-  seannova: "SeanNova",
-};
-
-function clp(n: number) {
-  return (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("es-CL");
+function Resultado({ n }: { n: number }) {
+  return (
+    <span className={"tabular-nums " + (n > 0 ? "text-emerald-400" : n < 0 ? "text-red-400" : "text-neutral-300")}>
+      {clp(n)}
+    </span>
+  );
 }
 
 export default async function Resumen({
@@ -17,103 +33,161 @@ export default async function Resumen({
   searchParams: Promise<{ mes?: string }>;
 }) {
   const { mes } = await searchParams;
-  const supabase = await createClient();
+  const actual = mesActual();
+  const elegido = mesValido(mes);
+  const delMes = nombreMes(elegido, false);
 
-  // sin ?mes en la URL, el mes actual en Chile (no en UTC)
-  const mesActual = new Date()
-    .toLocaleDateString("en-CA", { timeZone: TZ })
-    .slice(0, 7);
-  const mesElegido = mes && /^\d{4}-\d{2}$/.test(mes) ? mes : mesActual;
+  const { filas, error } = await movimientosDelMes(elegido);
 
-  const { data: filas, error } = await supabase.rpc("monthly_summary", {
-    p_month: mesElegido + "-01",
-  });
+  const total = sumar(filas);
+  const hayMovimientos = filas.length > 0;
 
-  if (error) return <pre className="text-red-400">{error.message}</pre>;
-
-  const resumen = filas ?? [];
-
-  const total = resumen.reduce(
-    (acc, r) => ({
-      ingresos: acc.ingresos + r.ingresos,
-      gastos: acc.gastos + r.gastos,
-      ganancia: acc.ganancia + r.ganancia,
-    }),
-    { ingresos: 0, gastos: 0, ganancia: 0 }
+  const negocios = MARCAS.map((m) => ({ ...m, ...sumar(filas.filter((f) => f.brand === m.id)) })).filter(
+    (n) => n.entro > 0 || n.salio > 0
   );
 
-  // mediodía para que ningún corrimiento de zona me cambie el mes
-  const etiqueta = new Date(mesElegido + "-01T12:00:00").toLocaleDateString(
-    "es-CL",
-    { month: "long", year: "numeric" }
-  );
+  const sumas = new Map<string, number>();
+  for (const f of filas) {
+    if (f.direction !== "out") continue;
+    const k = nombreCategoria(f.category);
+    sumas.set(k, (sumas.get(k) ?? 0) + f.amount_clp);
+  }
+  const porCategoria = [...sumas].sort((a, b) => b[1] - a[1]);
+  const linkGastos = "/panel/gastos" + (elegido === actual ? "" : "?mes=" + elegido);
 
   return (
     <>
-      <div className="mb-4 flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Resumen</h1>
-          <p className="text-sm text-neutral-500">{etiqueta}</p>
-        </div>
-        <form className="flex gap-2">
-          <input type="month" name="mes" defaultValue={mesElegido} max={mesActual} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100" />
-          <button className="rounded-md border border-neutral-600 px-3 py-1 text-sm">Ver</button>
-        </form>
-      </div>
+      <h1 className="mb-4 text-xl font-semibold">Resumen</h1>
+      <MesNav ruta="/panel/resumen" mes={elegido} actual={actual} />
 
-      <div className="mb-6 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-        <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">Ganancia del mes</p>
-        <p
-          className={
-            "mt-1 text-3xl font-semibold tabular-nums " +
-            (total.ganancia >= 0 ? "text-emerald-400" : "text-red-400")
-          }
-        >
-          {clp(total.ganancia)}
+      {error ? (
+        <p className="mt-6 rounded-md border border-red-900 bg-red-950/40 p-3 text-sm text-red-400">
+          {mensajeGastos(error)}
         </p>
-        <p className="mt-1 text-sm text-neutral-500">
-          {clp(total.ingresos)} en ventas, {clp(total.gastos)} en gastos
-        </p>
-      </div>
+      ) : (
+        <>
+          <div
+            className={
+              "mt-6 rounded-lg border p-5 " +
+              (total.resultado > 0
+                ? "border-emerald-900 bg-emerald-950/30"
+                : total.resultado < 0
+                  ? "border-red-900 bg-red-950/30"
+                  : "border-neutral-800 bg-neutral-900")
+            }
+          >
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm text-neutral-300">
+                {!hayMovimientos
+                  ? "Sin movimientos en " + delMes
+                  : total.resultado > 0
+                    ? "En " + delMes + " ganaste"
+                    : total.resultado < 0
+                      ? "En " + delMes + " perdiste"
+                      : "En " + delMes + " quedaste justo en"}
+              </p>
+              <InfoTip
+                align="start"
+                text="Lo que entró por cortes y productos cobrados, menos lo que anotaste en Gastos. Si es positivo ganaste; si es negativo, gastaste más de lo que vendiste."
+              />
+            </div>
+            <p
+              className={
+                "mt-1 text-4xl font-semibold tabular-nums " +
+                (total.resultado > 0 ? "text-emerald-400" : total.resultado < 0 ? "text-red-400" : "text-neutral-200")
+              }
+            >
+              {/* "perdiste $10.000" se lee mejor que "perdiste -$10.000" */}
+              {clp(Math.abs(total.resultado))}
+            </p>
 
-      {resumen.length === 0 && (
-        <p className="rounded-md border border-dashed border-neutral-800 p-8 text-center text-sm text-neutral-500">
-          Sin movimientos este mes
-        </p>
-      )}
-
-      <div className="space-y-3">
-        {resumen.map((r) => (
-          <div key={r.marca} className="rounded-lg border border-neutral-800 p-4">
-            <p className="mb-2 font-medium">{NOMBRE[r.marca] ?? r.marca}</p>
-            <dl className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">Ventas</dt>
-                <dd className="tabular-nums text-emerald-400">{clp(r.ingresos)}</dd>
+            <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
+              <div>
+                <dt className="text-xs text-neutral-500">Entró (ventas)</dt>
+                <dd className="text-lg tabular-nums text-emerald-400">{clp(total.entro)}</dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">Costo de lo vendido</dt>
-                <dd className="tabular-nums text-neutral-400">−{clp(r.costos)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">Gastos</dt>
-                <dd className="tabular-nums text-red-400">−{clp(r.gastos)}</dd>
-              </div>
-              <div className="flex justify-between border-t border-neutral-800 pt-1 font-medium">
-                <dt>Ganancia</dt>
-                <dd
-                  className={
-                    "tabular-nums " +
-                    (r.ganancia >= 0 ? "text-emerald-400" : "text-red-400")
-                  }
-                >
-                  {clp(r.ganancia)}
-                </dd>
+              <div>
+                <dt className="text-xs text-neutral-500">Salió (gastos)</dt>
+                <dd className="text-lg tabular-nums text-red-400">−{clp(total.salio)}</dd>
               </div>
             </dl>
+
+            {elegido === actual && hayMovimientos && (
+              <p className="mt-3 text-xs text-neutral-500">El mes todavía no termina: esto es lo que llevas hasta hoy.</p>
+            )}
           </div>
-        ))}
-      </div>
+
+          {negocios.length > 0 && (
+            <section className="mt-8">
+              <h2 className="mb-2 text-xs uppercase tracking-[0.2em] text-neutral-500">Por negocio</h2>
+              <div className="grid gap-3 md:grid-cols-2">
+                {negocios.map((n) => (
+                  <div key={n.id} className="rounded-lg border border-neutral-800 p-4">
+                    <p className="font-medium">
+                      {n.label} <span className="text-xs font-normal text-neutral-500">· {n.ayuda}</span>
+                    </p>
+                    <dl className="mt-2 space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <dt className="text-neutral-500">Ventas</dt>
+                        <dd className="tabular-nums text-emerald-400">{clp(n.entro)}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-neutral-500">Gastos</dt>
+                        <dd className="tabular-nums text-red-400">−{clp(n.salio)}</dd>
+                      </div>
+                      <div className="flex justify-between border-t border-neutral-800 pt-1 font-medium">
+                        <dt>{n.resultado < 0 ? "Pérdida" : "Ganancia"}</dt>
+                        <dd>
+                          <Resultado n={n.resultado} />
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="mt-8">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h2 className="text-xs uppercase tracking-[0.2em] text-neutral-500">En qué se fue la plata</h2>
+              <Link
+                href={linkGastos}
+                className="text-xs text-neutral-400 underline underline-offset-4 transition hover:text-white"
+              >
+                Ver gastos →
+              </Link>
+            </div>
+
+            {porCategoria.length === 0 ? (
+              <p className="rounded-md border border-dashed border-neutral-800 p-5 text-center text-sm text-neutral-500">
+                No hay gastos anotados en {delMes}.{" "}
+                <Link href={linkGastos} className="text-neutral-300 underline underline-offset-4">
+                  Anótalos en Gastos
+                </Link>{" "}
+                para que la cuenta sea real.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {porCategoria.map(([nombre, monto]) => (
+                  <li key={nombre}>
+                    <div className="flex justify-between gap-3 text-sm">
+                      <span>{nombre}</span>
+                      <span className="tabular-nums text-neutral-300">{clp(monto)}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-neutral-800">
+                      <div
+                        className="h-full rounded-full bg-red-500/70"
+                        style={{ width: Math.max(2, Math.round((monto / total.salio) * 100)) + "%" }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
     </>
   );
 }

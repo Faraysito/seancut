@@ -31,7 +31,7 @@ export default async function Catalogo({
   return (
     <>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Catálogo</h1>
+        <h1 className="text-xl font-semibold">Administrar catálogo/cortes</h1>
         <Link href="/panel/catalogo/nuevo" className="rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-950">+ Nuevo</Link>
       </div>
 
